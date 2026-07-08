@@ -8,46 +8,92 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Rules\ValidSKU;
+use App\Rules\ValidCategory;
 
 class ProductController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display Products
      */
     public function index(Request $request): JsonResponse
     {
         $query = Product::query();
 
-        // Search functionality
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('sku', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
         }
 
-        // Filter by category
-        if ($request->has('category')) {
+        // Category Filter
+        if ($request->filled('category')) {
             $query->where('category', $request->category);
         }
 
-        // Sort functionality
+        // Price Filter
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Stock Filter
+        if ($request->filled('stock')) {
+            if ($request->stock == 'available') {
+                $query->where('stock', '>', 0);
+            }
+
+            if ($request->stock == 'out_of_stock') {
+                $query->where('stock', 0);
+            }
+        }
+
+        // Sorting
+        $allowedSorts = [
+            'id',
+            'name',
+            'price',
+            'stock',
+            'category',
+            'created_at'
+        ];
+
         $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'created_at';
+        }
+
+        $sortOrder = strtolower($request->get('sort_order', 'desc'));
+
+        if (!in_array($sortOrder, ['asc', 'desc'])) {
+            $sortOrder = 'desc';
+        }
+
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 2);
+
         $products = $query->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'data' => $products,
-            'message' => 'Products retrieved successfully.'
+            'message' => 'Products retrieved successfully.',
+            'data' => $products
         ]);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store Product
      */
     public function store(StoreProductRequest $request): JsonResponse
     {
@@ -55,25 +101,25 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $product,
-            'message' => 'Product created successfully.'
+            'message' => 'Product created successfully.',
+            'data' => $product
         ], 201);
     }
 
     /**
-     * Display the specified resource.
+     * Show Product
      */
     public function show(Product $product): JsonResponse
     {
         return response()->json([
             'success' => true,
-            'data' => $product,
-            'message' => 'Product retrieved successfully.'
+            'message' => 'Product details',
+            'data' => $product
         ]);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update Product
      */
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
@@ -81,13 +127,13 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $product->fresh(),
-            'message' => 'Product updated successfully.'
+            'message' => 'Product updated successfully.',
+            'data' => $product->fresh()
         ]);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete Product
      */
     public function destroy(Product $product): JsonResponse
     {
@@ -96,34 +142,108 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product deleted successfully.'
-        ], 200);
+        ]);
     }
 
     /**
-     * Bulk product creation with custom validation
+     * Bulk Create
      */
     public function bulkStore(Request $request): JsonResponse
     {
         $request->validate([
             'products' => 'required|array|min:1|max:10',
             'products.*.name' => 'required|string|max:255',
-            'products.*.sku' => ['required', 'unique:products,sku', new \App\Rules\ValidSKU],
+            'products.*.sku' => [
+                'required',
+                'unique:products,sku',
+                new ValidSKU
+            ],
             'products.*.price' => 'required|numeric|min:0.01',
-            'products.*.category' => ['required', new \App\Rules\ValidCategory],
-        ], [
-            'products.*.sku.unique' => 'The SKU :input already exists.',
-            'products.*.price.min' => 'Price for product :position must be at least 0.01',
+            'products.*.stock' => 'required|integer|min:0',
+            'products.*.category' => [
+                'required',
+                new ValidCategory
+            ],
         ]);
 
         $createdProducts = [];
-        foreach ($request->products as $productData) {
-            $createdProducts[] = Product::create($productData);
+
+        foreach ($request->products as $product) {
+            $createdProducts[] = Product::create($product);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $createdProducts,
-            'message' => 'Products created successfully.'
+            'message' => 'Products created successfully.',
+            'data' => $createdProducts
         ], 201);
     }
+
+    /**
+     * Dashboard Statistics API
+     */
+    public function statistics()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_products' => Product::count(),
+                'available_products' => Product::where('stock', '>', 0)->count(),
+                'out_of_stock' => Product::where('stock', 0)->count(),
+                'total_stock' => Product::sum('stock'),
+                'categories' => Product::distinct('category')->count('category'),
+                'average_price' => Product::avg('price'),
+            ]
+        ]);
+    }
+    /**
+     * Low Stock Products
+     */
+    public function lowStock(): JsonResponse
+    {
+        $products = Product::where('stock', '<', 20)
+            ->orderBy('stock')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Low stock products.',
+            'data' => $products
+        ]);
+    }
+
+    /**
+     * Expired Products
+     */
+    public function expiredProducts(): JsonResponse
+    {
+        $products = Product::whereDate('expiry_date', '<', now())
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Expired products.',
+            'data' => $products
+        ]);
+    }
+
+    /**
+     * Category Wise Count
+     */
+    public function categoryCount(): JsonResponse
+    {
+        $categories = Product::select('category')
+            ->selectRaw('COUNT(*) as total_products')
+            ->groupBy('category')
+            ->orderBy('category')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Category wise product count.',
+            'data' => $categories
+        ]);
+    }
+
+
 }
