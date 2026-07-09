@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Rules\ValidSKU;
 use App\Rules\ValidCategory;
+use App\Rules\ValidProductStatus;
 
 class ProductController extends Controller
 {
@@ -34,6 +35,11 @@ class ProductController extends Controller
         // Category Filter
         if ($request->filled('category')) {
             $query->where('category', $request->category);
+        }
+
+        // Status Filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
 
         // Price Filter
@@ -81,7 +87,7 @@ class ProductController extends Controller
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = $request->get('per_page', 2);
+        $perPage = $request->get('per_page', 3);
 
         $products = $query->paginate($perPage);
 
@@ -164,6 +170,11 @@ class ProductController extends Controller
                 'required',
                 new ValidCategory
             ],
+
+            'products.*.status' => [
+                'required',
+                new ValidProductStatus
+            ],
         ]);
 
         $createdProducts = [];
@@ -245,5 +256,21 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Product Status Count
+     */
+    public function statusCount(): JsonResponse
+    {
+        $status = Product::select('status')
+            ->selectRaw('COUNT(*) as total_products')
+            ->groupBy('status')
+            ->orderBy('status')
+            ->get();
 
+        return response()->json([
+            'success' => true,
+            'message' => 'Product status count.',
+            'data' => $status
+        ]);
+    }
 }

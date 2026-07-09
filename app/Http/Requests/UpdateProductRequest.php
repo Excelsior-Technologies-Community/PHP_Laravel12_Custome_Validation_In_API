@@ -6,6 +6,7 @@ use App\Rules\ValidCategory;
 use App\Rules\ValidExpiryDate;
 use App\Rules\ValidSKU;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\ValidProductStatus;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -25,7 +26,9 @@ class UpdateProductRequest extends FormRequest
             'stock' => 'sometimes|integer|min:0|max:10000',
             'expiry_date' => ['sometimes', 'nullable', 'date', 'after:today', new ValidExpiryDate],
             'category' => ['sometimes', 'string', new ValidCategory],
-            'description' => 'sometimes|nullable|string|max:1000'
+            'description' => 'sometimes|nullable|string|max:1000',
+            // NEW
+            'status' => ['sometimes', new ValidProductStatus],
         ];
     }
 }
