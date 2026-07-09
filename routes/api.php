@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\API\ProductController;
 use App\Rules\ValidSKU;
 use App\Rules\ValidCategory;
+use App\Http\Controllers\API\ProductImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +25,10 @@ Route::get('products/expired', [ProductController::class, 'expiredProducts']);
 Route::get('products/category-count', [ProductController::class, 'categoryCount']);
 
 Route::post('products/bulk', [ProductController::class, 'bulkStore']);
+
+Route::get('products/status-count', [ProductController::class, 'statusCount']);
+
+Route::post('products/import', [ProductImportController::class, 'import']);
 
 // Product CRUD (MUST COME LAST)
 

@@ -17,7 +17,8 @@ class ProductSeeder extends Seeder
                 'stock' => 50,
                 'expiry_date' => now()->addYears(2),
                 'category' => 'electronics',
-                'description' => 'Latest smartphone with advanced features'
+                'description' => 'Latest smartphone with advanced features',
+                'status' => 'active'
             ],
             [
                 'name' => 'Cotton T-Shirt',
@@ -26,7 +27,8 @@ class ProductSeeder extends Seeder
                 'stock' => 200,
                 'expiry_date' => now()->addYears(3),
                 'category' => 'clothing',
-                'description' => '100% cotton t-shirt'
+                'description' => '100% cotton t-shirt',
+                'status' => 'inactive'
             ],
             [
                 'name' => 'Programming Book',
@@ -35,7 +37,8 @@ class ProductSeeder extends Seeder
                 'stock' => 100,
                 'expiry_date' => now()->addYears(5),
                 'category' => 'books',
-                'description' => 'Learn programming with this comprehensive guide'
+                'description' => 'Learn programming with this comprehensive guide',
+                'status' => 'draft'
             ]
         ];
 
