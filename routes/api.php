@@ -28,6 +28,10 @@ Route::post('products/bulk', [ProductController::class, 'bulkStore']);
 
 Route::get('products/status-count', [ProductController::class, 'statusCount']);
 
+Route::get('products/analytics', [ProductController::class, 'analytics']);
+
+Route::patch('products/{product}/quick-stock', [ProductController::class, 'quickStock']);
+
 Route::post('products/import', [ProductImportController::class, 'import']);
 
 // Product CRUD (MUST COME LAST)

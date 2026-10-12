@@ -20,12 +20,30 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="sku" class="form-label">SKU (Stock Keeping Unit) *</label>
-                                <input type="text" class="form-control" id="sku" name="sku" required>
+                                <label for="sku" class="form-label d-flex justify-content-between align-items-center">
+                                    <span>SKU (Stock Keeping Unit) *</span>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary py-0" onclick="generateRandomSKU()">
+                                            <i class="fas fa-magic me-1"></i> Auto-Generate
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark py-0" onclick="openBarcodeScanner('sku')">
+                                            <i class="fas fa-camera me-1"></i> Scan Barcode
+                                        </button>
+                                    </div>
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="sku" name="sku" required placeholder="PROD-123456" oninput="validateLiveSKU(this.value)">
+                                    <span class="input-group-text" id="skuValidationBadge">
+                                        <i class="fas fa-barcode"></i>
+                                    </span>
+                                </div>
                                 <div class="form-text">
-                                    Format: PROD- followed by 6 digits (e.g., PROD-123456)
+                                    Format: <code>PROD-</code> followed by 6 digits (e.g., PROD-123456)
                                 </div>
                                 <div class="invalid-feedback" id="skuError"></div>
+                                <div id="liveBarcodePreview" class="mt-2 text-center" style="display: none;">
+                                    <svg id="create-barcode-preview"></svg>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -130,35 +148,56 @@
         try {
             const response = await axios.post(`${API_BASE}/products`, formData);
 
-            // Show success message
+            // Show SweetAlert success
+            Swal.fire({
+                icon: 'success',
+                title: 'Product Created! 🎉',
+                text: `${response.data.data.name} has been added successfully.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Show success message container
             document.getElementById('formResponse').innerHTML = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> Product created successfully!
-                    <pre class="mt-2 mb-0">${formatJSON(response.data)}</pre>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> <strong>Success!</strong> Product created successfully.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <pre class="mt-2 mb-0 bg-white p-2 rounded border small">${formatJSON(response.data)}</pre>
                 </div>
             `;
 
             // Reset form
             resetForm();
 
-            // Refresh data
-            loadProducts();
-            loadStats();
+            // Refresh data tables & charts
+            if (typeof loadProducts === 'function') loadProducts();
+            if (typeof loadStats === 'function') loadStats();
+            if (typeof loadAnalytics === 'function') loadAnalytics();
 
         } catch (error) {
+            console.error("Create product error:", error);
             if (error.response && error.response.status === 422) {
                 // Validation errors
                 const errors = error.response.data.errors;
                 displayErrors(errors);
 
+                const errorMessages = Object.values(errors).flat().join('<br>');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Validation Failed',
+                    html: `<div class="text-start">${errorMessages}</div>`
+                });
+
                 document.getElementById('formResponse').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle"></i> Validation failed!
-                        <pre class="mt-2 mb-0">${formatJSON(error.response.data)}</pre>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Validation Errors!</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <pre class="mt-2 mb-0 bg-white p-2 rounded border small text-danger">${formatJSON(error.response.data)}</pre>
                     </div>
                 `;
             } else {
-                showError('Failed to create product');
+                const genericMsg = error.response?.data?.message || 'Failed to create product';
+                showError(genericMsg);
             }
         }
     });
@@ -191,24 +230,30 @@
     function resetForm() {
         document.getElementById('createProductForm').reset();
         document.getElementById('formResponse').innerHTML = '';
+        const preview = document.getElementById('liveBarcodePreview');
+        if (preview) preview.style.display = 'none';
+        const badge = document.getElementById('skuValidationBadge');
+        if (badge) badge.innerHTML = '<i class="fas fa-barcode"></i>';
         clearErrors();
     }
 
     function fillSampleData() {
-        document.getElementById('name').value = 'Smart Watch Pro';
-        document.getElementById('sku').value = 'PROD-300001';
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        document.getElementById('name').value = 'Smart Watch Pro Ultra';
+        document.getElementById('sku').value = `PROD-${randomNum}`;
         document.getElementById('price').value = '299.99';
         document.getElementById('stock').value = '75';
 
-        // Set expiry date to 1 year from now
+        // Set expiry date to 1 year from now (guaranteed valid: > 30 days and < 5 years)
         const nextYear = new Date();
         nextYear.setFullYear(nextYear.getFullYear() + 1);
         document.getElementById('expiry_date').value = nextYear.toISOString().split('T')[0];
 
         document.getElementById('category').value = 'electronics';
         document.getElementById('status').value = 'active';
-        document.getElementById('description').value = 'Advanced smartwatch with health monitoring features';
+        document.getElementById('description').value = 'Advanced smartwatch with heart rate sensor, AMOLED display, and GPS tracking.';
 
+        validateLiveSKU(`PROD-${randomNum}`);
         clearErrors();
     }
 </script>

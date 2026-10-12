@@ -14,6 +14,12 @@
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- Chart.js, JsBarcode, and QR Scanner CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
     <!-- Custom CSS -->
     <style>
         body {
@@ -61,25 +67,32 @@
             background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
             color: white;
         }
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 80px;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark nav-gradient mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-shield-alt"></i> Custom Validation API
+    <nav class="navbar navbar-expand-lg navbar-dark nav-gradient mb-4 sticky-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-shield-alt me-1"></i> Custom Validation API
             </a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="#products">Products</a>
-                <a class="nav-link" href="#create">Create Product</a>
-                <a class="nav-link" href="#bulk">Bulk Create</a>
-                <a class="nav-link" href="#validation">Validation Rules</a>
+            <div class="navbar-nav ms-auto flex-row gap-3">
+                <a class="nav-link" href="/#products"><i class="fas fa-boxes me-1"></i> Products</a>
+                <a class="nav-link" href="/#analytics"><i class="fas fa-chart-pie me-1"></i> Analytics</a>
+                <a class="nav-link" href="/#stock-radar"><i class="fas fa-heartbeat me-1"></i> Stock Radar</a>
+                <a class="nav-link" href="/products/create"><i class="fas fa-plus me-1"></i> Create Product</a>
+                <a class="nav-link" href="/#bulk"><i class="fas fa-layer-group me-1"></i> Bulk</a>
+                <a class="nav-link" href="/labels" target="_blank"><i class="fas fa-barcode me-1"></i> Labels</a>
+                <a class="nav-link" href="/#validation"><i class="fas fa-shield-alt me-1"></i> Rules</a>
             </div>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container-fluid px-4">
         @yield('content')
     </div>
 
