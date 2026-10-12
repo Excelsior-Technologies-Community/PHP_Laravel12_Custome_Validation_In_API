@@ -273,4 +273,94 @@ class ProductController extends Controller
             'data' => $status
         ]);
     }
+
+    /**
+     * Quick Stock Adjustment (+ / -)
+     */
+    public function quickStock(Request $request, Product $product): JsonResponse
+    {
+        $request->validate([
+            'adjustment' => 'required|integer',
+        ]);
+
+        $newStock = $product->stock + $request->adjustment;
+        if ($newStock < 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Stock cannot be reduced below zero.'
+            ], 422);
+        }
+
+        $product->stock = $newStock;
+        $product->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Stock updated to {$product->stock}.",
+            'data' => $product
+        ]);
+    }
+
+    /**
+     * Visual Analytics Data (Charts & LifeCycle Radar)
+     */
+    public function analytics(): JsonResponse
+    {
+        // Category Breakdown
+        $categories = Product::select('category')
+            ->selectRaw('COUNT(*) as count, SUM(stock) as total_stock, SUM(price * stock) as total_value')
+            ->groupBy('category')
+            ->get();
+
+        // Price Tier Breakdown
+        $priceTiers = [
+            'Budget (< $50)' => Product::where('price', '<', 50)->count(),
+            'Mid-Range ($50 - $200)' => Product::whereBetween('price', [50, 200])->count(),
+            'Premium ($200 - $500)' => Product::whereBetween('price', [200, 500])->count(),
+            'Luxury (> $500)' => Product::where('price', '>', 500)->count(),
+        ];
+
+        // Top Valuable Assets (Price * Stock)
+        $topAssets = Product::where('stock', '>', 0)
+            ->select('id', 'name', 'sku', 'price', 'stock', 'category')
+            ->selectRaw('(price * stock) as inventory_value')
+            ->orderByDesc('inventory_value')
+            ->take(5)
+            ->get();
+
+        // Stock Depletion Alerts (Critical < 5, Low < 20, Healthy >= 20)
+        $criticalStock = Product::where('stock', '<', 5)->count();
+        $lowStock = Product::whereBetween('stock', [5, 20])->count();
+        $healthyStock = Product::where('stock', '>', 20)->count();
+
+        // Expiry Countdown (Expired, Expiring within 30 days, Safe)
+        $expiredCount = Product::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<', now())
+            ->count();
+
+        $expiringSoon = Product::whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [now(), now()->addDays(30)])
+            ->select('id', 'name', 'sku', 'expiry_date', 'stock')
+            ->orderBy('expiry_date')
+            ->take(5)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categories' => $categories,
+                'price_tiers' => $priceTiers,
+                'top_assets' => $topAssets,
+                'depletion' => [
+                    'critical' => $criticalStock,
+                    'low' => $lowStock,
+                    'healthy' => $healthyStock,
+                ],
+                'expiry' => [
+                    'expired_count' => $expiredCount,
+                    'expiring_soon' => $expiringSoon,
+                ]
+            ]
+        ]);
+    }
 }
